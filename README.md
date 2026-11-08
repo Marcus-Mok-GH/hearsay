@@ -6,6 +6,8 @@ Two [Pollinations](https://pollinations.ai) models pass a story back and forth u
 
 **Live:** https://marcus-mok-gh.github.io/hearsay/
 
+![Hearsay: a six-pass chain and the judge verdict](docs/screenshot.png)
+
 ## How a round works
 
 1. You write the original: one or two sentences, ideally with specifics that can be dropped or invented.
