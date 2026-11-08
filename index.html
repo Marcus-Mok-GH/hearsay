@@ -1,0 +1,525 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Hearsay — a story retold by two AI models</title>
+<meta name="description" content="Two Pollinations models pass a story back and forth until it is not the same story. Bet whether the meaning survives, then let a decision model judge." />
+<style>
+  :root {
+    --bg: #0c0f16;
+    --panel: #131823;
+    --panel-2: #182031;
+    --line: #26314a;
+    --text: #e8eefc;
+    --dim: #93a1bd;
+    --a: #7aa2ff;
+    --b: #6ee7b7;
+    --warn: #f0c451;
+    --bad: #f0857a;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: radial-gradient(1100px 520px at 50% -12%, #17233a 0%, #0c0f16 62%) no-repeat, var(--bg);
+    color: var(--text);
+    font: 16px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 22px 16px 40px; }
+
+  header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .brand h1 { margin: 0 0 4px; font-size: clamp(1.5rem, 1.1rem + 2vw, 2rem); letter-spacing: -.02em; }
+  .brand p { margin: 0; color: var(--dim); font-size: 14px; max-width: 46ch; }
+  .connect-slot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  .pill {
+    border: 1px solid var(--line); background: var(--panel); color: var(--dim);
+    border-radius: 999px; padding: 8px 12px; font-size: 12.5px; white-space: nowrap;
+  }
+  .pill.ok { color: #bff3d8; border-color: #2c5a45; background: rgba(110,231,183,.08); }
+
+  .layout { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 900px) {
+    .layout { grid-template-columns: minmax(300px, 360px) 1fr; align-items: start; }
+    .wrap { padding: 28px 24px 48px; }
+    .chain-col { position: sticky; top: 16px; }
+  }
+  @media (min-width: 1240px) { .wrap { max-width: 1200px; } }
+
+  .card { background: linear-gradient(180deg, var(--panel-2), var(--panel)); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .card + .card { margin-top: 14px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+
+  label.field { display: block; margin-bottom: 10px; }
+  label.field > span { display: block; font-size: 13px; color: var(--dim); margin-bottom: 5px; }
+  select, textarea, button, input { font: inherit; width: 100%; }
+  select, textarea, input {
+    background: #0e1420; color: var(--text); border: 1px solid var(--line);
+    border-radius: 11px; padding: 11px 12px; min-height: 46px;
+  }
+  textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
+  select:focus-visible, textarea:focus-visible, button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visible {
+    outline: 2px solid var(--a); outline-offset: 2px;
+  }
+  button {
+    border: 0; border-radius: 11px; min-height: 46px; padding: 12px 14px;
+    background: var(--a); color: #06101f; font-weight: 650; cursor: pointer;
+  }
+  button.ghost { background: transparent; border: 1px solid var(--line); color: var(--text); font-weight: 550; }
+  button:disabled { opacity: .55; cursor: not-allowed; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 400px) { .row2 { grid-template-columns: 1fr; } }
+  .inline { display: flex; gap: 8px; flex-wrap: wrap; }
+  .inline > button { flex: 1 1 120px; }
+
+  .bet { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bet button { background: #0e1420; border: 1px solid var(--line); color: var(--text); font-weight: 600; }
+  .bet button[aria-pressed="true"] { border-color: var(--a); background: rgba(122,162,255,.16); color: #dce7ff; }
+
+  .chain { display: grid; gap: 10px; }
+  .turn { border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: #0f1521; }
+  .turn .who { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--dim); margin-bottom: 6px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+  .dot.a { background: var(--a); }
+  .dot.b { background: var(--b); }
+  .turn p { margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+  .turn.seed { background: #101a17; border-color: #24513f; }
+
+  .verdict { border: 1px solid var(--line); border-radius: 12px; padding: 13px; margin-top: 12px; background: #0f1521; }
+  .verdict h3 { margin: 0 0 6px; font-size: 16px; }
+  .verdict .sub { color: var(--dim); font-size: 13px; }
+  .verdict .res { font-size: 20px; font-weight: 700; margin: 8px 0 4px; }
+  .verdict .res.good { color: var(--b); }
+  .verdict .res.bad { color: var(--bad); }
+  .probs { display: grid; gap: 6px; margin-top: 10px; }
+  .prob { display: grid; grid-template-columns: 52px 1fr 46px; gap: 8px; align-items: center; font-size: 12.5px; color: var(--dim); }
+  .track { height: 8px; background: #0a0f18; border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+  .track > i { display: block; height: 100%; background: linear-gradient(90deg, var(--a), var(--b)); border-radius: 99px; }
+
+  .notice { border: 1px solid #4a3718; background: rgba(240,196,81,.08); color: #f0dca8; border-radius: 11px; padding: 10px 12px; font-size: 13.5px; margin-top: 12px; overflow-wrap: anywhere; }
+  .notice.err { border-color: #5a2626; background: rgba(240,133,122,.09); color: #f4c0ba; }
+  .empty { color: var(--dim); font-size: 14px; border: 1px dashed var(--line); border-radius: 12px; padding: 18px; text-align: center; }
+
+  .score { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .score .pill { font-variant-numeric: tabular-nums; }
+  footer { margin-top: 22px; color: var(--dim); font-size: 13px; display: flex; gap: 4px 14px; flex-wrap: wrap; }
+  footer a { color: #9fc6ff; text-decoration: none; display: inline-flex; align-items: center; min-height: 44px; padding: 0 2px; }
+  footer a:hover { text-decoration: underline; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Hearsay</h1>
+      <p>Two models pass a story back and forth. You bet whether the meaning survives, and a third call judges it.</p>
+    </div>
+    <div class="connect-slot">
+      <div id="connect"></div>
+      <span id="balance" class="pill">No Pollen connected</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section>
+      <div class="card">
+        <h2>The original</h2>
+        <label class="field">
+          <span>One or two sentences. Specific details make the drift easier to see.</span>
+          <textarea id="seed" maxlength="320">The lighthouse keeper at Ardmore left a brass key under the third stair and told nobody, because the only other person who knew had already sailed.</textarea>
+        </label>
+        <div class="inline">
+          <button class="ghost" id="dice" type="button">Surprise me</button>
+          <button class="ghost" id="clear" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>The two mouths</h2>
+        <label class="field">
+          <span>First voice</span>
+          <select id="model-a" aria-label="First model"></select>
+        </label>
+        <label class="field">
+          <span>Second voice</span>
+          <select id="model-b" aria-label="Second model"></select>
+        </label>
+        <label class="field">
+          <span>Passes</span>
+          <select id="passes" aria-label="Number of passes">
+            <option value="4">4 passes</option>
+            <option value="6" selected>6 passes</option>
+            <option value="8">8 passes</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="card">
+        <h2>Your bet</h2>
+        <p class="sub" style="margin:0 0 10px;color:var(--dim);font-size:13px">Will the last retelling still carry the original meaning?</p>
+        <div class="bet" role="group" aria-label="Your bet">
+          <button type="button" data-bet="yes" aria-pressed="false">It survives</button>
+          <button type="button" data-bet="no" aria-pressed="false">It drifts</button>
+        </div>
+        <div class="inline" style="margin-top:12px">
+          <button id="start" type="button">Start the line</button>
+        </div>
+        <div id="setup-note"></div>
+        <div class="score">
+          <span class="pill" id="score-called">Called 0</span>
+          <span class="pill" id="score-missed">Missed 0</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="chain-col">
+      <div class="card">
+        <h2>The line</h2>
+        <div id="chain" class="chain"><div class="empty">Nothing has been said yet. Pick your wager and start the line.</div></div>
+        <div id="verdict-slot"></div>
+        <div id="error-slot"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    <a href="https://pollinations.ai" target="_blank" rel="noreferrer noopener">Pollinations</a>
+    <a href="https://gen.pollinations.ai/docs" target="_blank" rel="noreferrer noopener">API docs</a>
+    <a href="https://enter.pollinations.ai/quests" target="_blank" rel="noreferrer noopener">Pollen quests</a>
+    <a href="https://github.com/Marcus-Mok-GH/hearsay" target="_blank" rel="noreferrer noopener">Source</a>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@pollinations/connect@2/connect.js" defer></script>
+<script>
+(function () {
+  "use strict";
+
+  // Publishable App Key (safe in client code). Its Redirect URI is this page's URL.
+  var APP_KEY = "pk_xWakX5E2egKrfg1Y";
+  var API = "https://gen.pollinations.ai";
+  var STORE = "hearsay.v1";
+
+  var SEEDS = [
+    "The lighthouse keeper at Ardmore left a brass key under the third stair and told nobody, because the only other person who knew had already sailed.",
+    "A vet in Kraków once removed a wedding ring from a tortoise that had been missing for eleven years, and the couple had divorced in year four.",
+    "The last tram of the night waits three extra minutes at the depot on Sundays, and only the driver knows it is for a cat.",
+    "A bakery in Lisbon has priced the same loaf at 2.10 for nineteen years because the owner promised his mother she would always afford it.",
+    "A river in County Clare changed course in 1974 and took a gatepost with it, which is why the field beyond it still has an orphaned gate."
+  ];
+
+  var state = {
+    apiKey: "",
+    balance: null,
+    bet: "",
+    running: false,
+    tally: { called: 0, missed: 0 },
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function loadTally() {
+    try {
+      var raw = localStorage.getItem(STORE);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (parsed && parsed.tally) state.tally = { called: Number(parsed.tally.called) || 0, missed: Number(parsed.tally.missed) || 0 };
+    } catch (e) {}
+  }
+  function saveTally() {
+    try { localStorage.setItem(STORE, JSON.stringify({ tally: state.tally })); } catch (e) {}
+  }
+  function paintTally() {
+    $("score-called").textContent = "Called " + state.tally.called;
+    $("score-missed").textContent = "Missed " + state.tally.missed;
+  }
+
+  function notice(msg, isError) {
+    var slot = $("error-slot");
+    slot.innerHTML = "";
+    if (!msg) return;
+    var n = el("div", "notice" + (isError ? " err" : ""), msg);
+    slot.appendChild(n);
+  }
+
+  function setBusy(busy) {
+    state.running = busy;
+    $("start").disabled = busy;
+    $("start").textContent = busy ? "Listening…" : "Start the line";
+  }
+
+  async function api(path, options) {
+    var opts = options || {};
+    var headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    if (state.apiKey) headers.Authorization = "Bearer " + state.apiKey;
+    var res = await fetch(API + path, { method: opts.method || "GET", headers: headers, body: opts.body });
+    var text = await res.text();
+    var data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (e) { data = { raw: text }; }
+    if (!res.ok) {
+      var msg = (data && data.error && (data.error.message || data.error)) || ("Request failed (" + res.status + ")");
+      var err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function explainError(err) {
+    if (err.status === 401) return "Connect your Pollen first: the models bill your own account, so there is nothing to charge until you authorise.";
+    if (err.status === 402) return "Your Pollen balance is too low for this run. Top up at enter.pollinations.ai and try again.";
+    return err.message || "Something went wrong.";
+  }
+
+  async function loadModels() {
+    try {
+      var data = await api("/models");
+      var list = Array.isArray(data) ? data : (data && (data.data || data.models)) || [];
+      var texts = list.filter(function (m) { return String(m.category || "").toLowerCase() === "text"; });
+      if (!texts.length) texts = list.filter(function (m) { return /text/i.test(String(m.category || "")); });
+      var options = texts.map(function (m) { return { value: m.name, label: m.title || m.name }; });
+      fill($("model-a"), options);
+      fill($("model-b"), options);
+      if (options.length > 1) $("model-b").selectedIndex = 1;
+    } catch (e) {
+      fill($("model-a"), [{ value: "", label: "Connect Pollen to load models" }]);
+      fill($("model-b"), [{ value: "", label: "Connect Pollen to load models" }]);
+    }
+  }
+
+  function fill(select, options) {
+    select.innerHTML = "";
+    options.forEach(function (o) {
+      var opt = el("option", null, o.label);
+      opt.value = o.value;
+      select.appendChild(opt);
+    });
+  }
+
+  async function refreshBalance() {
+    if (!state.apiKey) return;
+    try {
+      var data = await api("/account/balance");
+      var bal = data && (data.balance != null ? data.balance : data.pollen);
+      if (bal != null) {
+        state.balance = Number(bal);
+        var pill = $("balance");
+        pill.textContent = state.balance.toFixed(2) + " Pollen connected";
+        pill.classList.add("ok");
+      }
+    } catch (e) {}
+  }
+
+  function mountConnect() {
+    var mount = $("connect");
+    mount.innerHTML = "";
+    if (!APP_KEY) {
+      var hint = el("span", "pill", "App key not configured");
+      hint.title = "Set APP_KEY in index.html to the publishable key from enter.pollinations.ai";
+      mount.appendChild(hint);
+      return;
+    }
+    var widget = document.createElement("polli-connect");
+    widget.setAttribute("app-key", APP_KEY);
+    widget.setAttribute("budget", "10");
+    widget.setAttribute("expiry", "7");
+    widget.setAttribute("models", "decision,text");
+    widget.addEventListener("change", function () {
+      if (widget.apiKey) {
+        state.apiKey = widget.apiKey;
+        refreshBalance();
+        loadModels();
+      } else {
+        state.apiKey = "";
+        var pill = $("balance");
+        pill.textContent = "No Pollen connected";
+        pill.classList.remove("ok");
+      }
+    });
+    mount.appendChild(widget);
+  }
+
+  function retell(model, text, turnIndex) {
+    var body = JSON.stringify({
+      model: model,
+      max_tokens: 110,
+      temperature: 0.9,
+      messages: [
+        {
+          role: "system",
+          content: "You are one voice in a game of telephone. Someone tells you a short piece of news. You pass it on to the next person, out loud, in your own words, in one or two sentences. Keep every fact you were given. Do not ask questions. Do not comment on the game. Reply with the retelling only."
+        },
+        { role: "user", content: "Pass " + turnIndex + ". You were told: \"" + text + "\"" }
+      ]
+    });
+    return api("/v1/chat/completions", { method: "POST", body: body }).then(function (data) {
+      var choice = data && data.choices && data.choices[0];
+      var content = choice && choice.message && choice.message.content;
+      if (!content) throw new Error("The model returned nothing.");
+      return String(content).trim().replace(/^["'“]|["'”]$/g, "");
+    });
+  }
+
+  function judge(original, finalText) {
+    var body = JSON.stringify({
+      model: "jev",
+      state: "Original statement: " + original + "\n\nFinal retelling after several passes: " + finalText,
+      questions: {
+        preserved: {
+          type: "choice",
+          instructions: "Does the final retelling still carry the core claim and specifics of the original statement?",
+          criteria: {
+            yes: "The core claim and its specifics survive the retelling",
+            no: "The core claim changed, vanished or gained contradictions"
+          }
+        }
+      }
+    });
+    return api("/alpha/decisions", { method: "POST", body: body }).then(function (data) {
+      var ans = data && data.answers && data.answers.preserved;
+      if (!ans) throw new Error("The judge returned no answer.");
+      return ans;
+    });
+  }
+
+  function paintTurn(container, label, text, kind) {
+    var box = el("div", "turn" + (kind ? " " + kind : ""));
+    var who = el("div", "who");
+    var dot = el("span", "dot " + (kind || "a"));
+    who.appendChild(dot);
+    who.appendChild(el("span", null, label));
+    box.appendChild(who);
+    box.appendChild(el("p", null, text));
+    container.appendChild(box);
+  }
+
+  function paintVerdict(answer, agreed) {
+    var slot = $("verdict-slot");
+    slot.innerHTML = "";
+    var box = el("div", "verdict");
+    box.appendChild(el("h3", null, "The judge"));
+    var choice = String(answer.choice || "").toLowerCase();
+    var survived = choice === "yes";
+    var res = el("div", "res " + (agreed ? "good" : "bad"),
+      (survived ? "The meaning survived" : "The meaning drifted") + (agreed ? " — you called it" : " — you missed it"));
+    box.appendChild(res);
+    var conf = answer.confidence != null ? Math.round(Number(answer.confidence) * 100) : null;
+    if (conf != null) box.appendChild(el("div", "sub", conf + "% sure"));
+
+    var probs = answer.probabilities || {};
+    var keys = Object.keys(probs);
+    if (keys.length) {
+      var wrap = el("div", "probs");
+      keys.forEach(function (k) {
+        var row = el("div", "prob");
+        row.appendChild(el("span", null, k));
+        var track = el("div", "track");
+        var bar = el("i");
+        var pct = Math.round(Number(probs[k]) * 100);
+        bar.style.width = Math.max(2, Math.min(100, pct)) + "%";
+        track.appendChild(bar);
+        row.appendChild(track);
+        row.appendChild(el("span", null, pct + "%"));
+        wrap.appendChild(row);
+      });
+      box.appendChild(wrap);
+    }
+    slot.appendChild(box);
+  }
+
+  async function run() {
+    notice("");
+    $("verdict-slot").innerHTML = "";
+
+    var seed = $("seed").value.trim();
+    var modelA = $("model-a").value;
+    var modelB = $("model-b").value;
+    var passes = Number($("passes").value);
+
+    if (!seed) { notice("Write something for them to pass on first.", true); return; }
+    if (!state.apiKey) { notice("Connect your Pollen first: the models bill your own account.", true); return; }
+    if (!modelA || !modelB) { notice("Pick two models once the model list loads.", true); return; }
+    if (!state.bet) { notice("Place your bet first: does the meaning survive, or drift?", true); return; }
+
+    var chain = $("chain");
+    chain.innerHTML = "";
+    paintTurn(chain, "The original", seed, "seed");
+
+    setBusy(true);
+    var current = seed;
+    var speaker = 0;
+    try {
+      for (var i = 1; i <= passes; i++) {
+        var model = speaker === 0 ? modelA : modelB;
+        var label = (speaker === 0 ? "First voice" : "Second voice") + " · pass " + i;
+        var box = el("div", "turn");
+        var who = el("div", "who");
+        who.appendChild(el("span", "dot " + (speaker === 0 ? "a" : "b")));
+        who.appendChild(el("span", null, label));
+        box.appendChild(who);
+        var p = el("p", null, "…");
+        box.appendChild(p);
+        chain.appendChild(box);
+        p.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+        current = await retell(model, current, i);
+        p.textContent = current;
+        speaker = speaker === 0 ? 1 : 0;
+      }
+
+      var answer = await judge(seed, current);
+      var survived = String(answer.choice || "").toLowerCase() === "yes";
+      var agreed = (survived && state.bet === "yes") || (!survived && state.bet === "no");
+      paintVerdict(answer, agreed);
+      if (agreed) state.tally.called += 1; else state.tally.missed += 1;
+      paintTally();
+      saveTally();
+    } catch (err) {
+      notice(explainError(err), true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function wire() {
+    loadTally();
+    paintTally();
+    mountConnect();
+    loadModels();
+
+    $("dice").addEventListener("click", function () {
+      var pool = SEEDS.filter(Boolean);
+      var pick = pool[Math.floor(Math.random() * pool.length)];
+      $("seed").value = pick;
+    });
+    $("clear").addEventListener("click", function () { $("seed").value = ""; $("seed").focus(); });
+    $("start").addEventListener("click", run);
+    Array.prototype.forEach.call(document.querySelectorAll("[data-bet]"), function (btn) {
+      btn.addEventListener("click", function () {
+        state.bet = btn.getAttribute("data-bet");
+        Array.prototype.forEach.call(document.querySelectorAll("[data-bet]"), function (b) {
+          b.setAttribute("aria-pressed", String(b === btn));
+        });
+      });
+    });
+    $("passes").addEventListener("change", function () {
+      if (state.running) $("passes").disabled = true; else $("passes").disabled = false;
+    });
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", wire);
+  else wire();
+})();
+</script>
+</body>
+</html>
