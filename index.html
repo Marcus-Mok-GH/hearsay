@@ -287,10 +287,23 @@
       var list = Array.isArray(data) ? data : (data && (data.data || data.models)) || [];
       var texts = list.filter(function (m) { return String(m.category || "").toLowerCase() === "text"; });
       if (!texts.length) texts = list.filter(function (m) { return /text/i.test(String(m.category || "")); });
-      var options = texts.map(function (m) { return { value: m.name, label: m.title || m.name }; });
-      fill($("model-a"), options);
-      fill($("model-b"), options);
-      if (options.length > 1) $("model-b").selectedIndex = 1;
+      var free = texts.filter(function (m) { return !m.paid_only; });
+      var paid = texts.filter(function (m) { return m.paid_only; });
+      if (free.length) {
+        var ordered = free.concat(paid);
+        var options = ordered.map(function (m) {
+          return { value: m.name, label: (m.title || m.name) + (m.paid_only ? " (paid)" : "") };
+        });
+        fill($("model-a"), options);
+        fill($("model-b"), options);
+        var alt = free.length > 1 ? free[1].name : free[0].name;
+        $("model-b").value = alt;
+      } else {
+        var options = texts.map(function (m) { return { value: m.name, label: m.title || m.name }; });
+        fill($("model-a"), options);
+        fill($("model-b"), options);
+        if (options.length > 1) $("model-b").selectedIndex = 1;
+      }
     } catch (e) {
       fill($("model-a"), [{ value: "", label: "Connect Pollen to load models" }]);
       fill($("model-b"), [{ value: "", label: "Connect Pollen to load models" }]);
@@ -372,7 +385,7 @@
 
   function judge(original, finalText) {
     var body = JSON.stringify({
-      model: "jev",
+      model: "microsoft/microsoft-decision-1",
       state: "Original statement: " + original + "\n\nFinal retelling after several passes: " + finalText,
       questions: {
         preserved: {
